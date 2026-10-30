@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#08090c">
+  <meta name="description" content="SONAM. A little movement, a different perspective.">
+  <title>SONAM</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: #08090c; }
+    body { color: #e8e9ec; font-family: Arial, Helvetica, sans-serif; overflow: hidden; }
+    main { height: 100vh; height: 100svh; display: grid; place-items: center; position: relative;
+      background: radial-gradient(ellipse at 50% 48%, #222733 0%, #101218 38%, #08090c 74%);
+      perspective: 1100px; touch-action: none; cursor: grab; overflow: hidden; outline-offset: -8px; }
+    main:active { cursor: grabbing; }
+    main::after { content: ''; position: absolute; width: 65vw; height: 6vw; bottom: 25%;
+      background: #0009; border-radius: 50%; filter: blur(22px); pointer-events: none; }
+    .word { position: relative; z-index: 1; transform-style: preserve-3d; will-change: transform;
+      font-size: clamp(48px, 17vw, 260px); font-weight: 900; letter-spacing: -.065em;
+      line-height: 1; user-select: none; -webkit-user-select: none; }
+    .face { display: block; backface-visibility: hidden; color: #fafafa;
+      background: linear-gradient(165deg, #fff 10%, #a9b3c5 42%, #f8faff 48%, #6b788e 76%, #d9e1ef);
+      background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 2px 1px #ffffff35); }
+    .layer { position: absolute; inset: 0; color: #4a556a; text-shadow: 0 1px #18202d;
+      transform: translateZ(var(--depth)); }
+    .back { position: absolute; inset: 0; transform: translateZ(-28px) rotateY(180deg); }
+    .hint { position: absolute; bottom: max(35px, env(safe-area-inset-bottom)); left: 0; right: 0;
+      text-align: center; color: #858b98; font-size: 10px; letter-spacing: .25em;
+      text-transform: uppercase; pointer-events: none; }
+    .hint span { color: #c4cbd6; margin-right: 10px; }
+    @media (prefers-reduced-motion: reduce) { .word { will-change: auto; } }
+  </style>
+</head>
+<body>
+  <main tabindex="0" role="region" aria-label="SONAM, interactive 3D text. Drag to rotate, or use arrow keys. Press Space to pause rotation.">
+    <div class="word" aria-hidden="true"><span class="face">SONAM</span><span class="face back">SONAM</span></div>
+    <div class="hint"><span>↔</span> Drag to rotate</div>
+  </main>
+  <script>
+    const stage = document.querySelector('main');
+    const word = document.querySelector('.word');
+    const motion = matchMedia('(prefers-reduced-motion: reduce)');
+    for (let depth = 1; depth <= 28; depth++) {
+      const layer = document.createElement('span');
+      layer.className = 'layer';
+      layer.textContent = 'SONAM';
+      layer.style.setProperty('--depth', `-${depth}px`);
+      word.prepend(layer);
+    }
+    let x = -12, y = -22, vx = 0, vy = 0, pointer = null, lastX = 0, lastY = 0;
+    let previous = 0, paused = false;
+    const paint = () => { word.style.transform = `rotateX(${x}deg) rotateY(${y}deg)`; };
+    stage.addEventListener('pointerdown', event => {
+      if (pointer !== null || (event.pointerType === 'mouse' && event.button !== 0)) return;
+      pointer = event.pointerId;
+      lastX = event.clientX; lastY = event.clientY; vx = vy = 0;
+      stage.setPointerCapture(pointer);
+    });
+    stage.addEventListener('pointermove', event => {
+      if (event.pointerId !== pointer) return;
+      vy = (event.clientX - lastX) * .45;
+      vx = (lastY - event.clientY) * .35;
+      y += vy; x = Math.max(-65, Math.min(65, x + vx));
+      lastX = event.clientX; lastY = event.clientY;
+      paint();
+    });
+    const release = event => {
+      if (event.pointerId === pointer) { pointer = null; if (motion.matches) vx = vy = 0; }
+    };
+    stage.addEventListener('pointerup', release);
+    stage.addEventListener('pointercancel', release);
+    stage.addEventListener('lostpointercapture', release);
+    stage.addEventListener('keydown', event => {
+      if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' '].includes(event.key)) return;
+      event.preventDefault();
+      if (event.key === ' ') paused = !paused;
+      if (event.key === 'ArrowLeft') y -= 12;
+      if (event.key === 'ArrowRight') y += 12;
+      if (event.key === 'ArrowUp') x = Math.max(-65, x - 8);
+      if (event.key === 'ArrowDown') x = Math.min(65, x + 8);
+      vx = vy = 0; paint();
+    });
+    function frame(now) {
+      const dt = previous ? Math.min((now - previous) / 16.667, 3) : 1;
+      previous = now;
+      if (pointer === null && !paused && !motion.matches) {
+        y = (y + .16 * dt + vy * dt) % 360;
+        x = Math.max(-65, Math.min(65, x + vx * dt));
+        vx *= Math.pow(.93, dt); vy *= Math.pow(.93, dt);
+        x += (-12 - x) * (1 - Math.pow(.995, dt));
+        paint();
+      }
+      requestAnimationFrame(frame);
+    }
+    paint(); requestAnimationFrame(frame);
+  </script>
+</body>
+</html>
